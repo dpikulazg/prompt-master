@@ -1,0 +1,687 @@
+<main class="min-h-screen flex flex-col max-w-md mx-auto bg-zinc-50 pb-12 relative overflow-hidden">
+  <!-- Global Loading Bar -->
+  @if (isLoading()) {
+    <div class="fixed top-0 left-0 right-0 z-[100] h-1 bg-zinc-100 overflow-hidden max-w-md mx-auto">
+      <div class="h-full bg-zinc-900 animate-progress"></div>
+    </div>
+  }
+
+  <!-- Header -->
+  <header class="p-6 pt-8 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3 shrink-0">
+      <img src="icon.png" alt="AI Prompt Master Logo" class="w-10 h-10 md:w-12 md:h-12 rounded-xl shadow-sm object-cover bg-zinc-900" referrerpolicy="no-referrer" />
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold tracking-tight text-zinc-900 leading-tight">{{ t('app.title') }}</h1>
+        <p class="text-xs md:text-sm text-zinc-500">{{ t('app.subtitle') }}</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 md:gap-3 shrink-0">
+      <!-- Language Switcher -->
+      <div class="flex items-center gap-1 bg-zinc-100 p-1 rounded-full border border-zinc-200">
+        <button 
+          (click)="setLanguage('en')" 
+          [class.bg-white]="translationService.currentLang() === 'en'"
+          [class.shadow-sm]="translationService.currentLang() === 'en'"
+          class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
+          title="English"
+        >
+          <span class="text-lg">🇺🇸</span>
+        </button>
+        <button 
+          (click)="setLanguage('hr')" 
+          [class.bg-white]="translationService.currentLang() === 'hr'"
+          [class.shadow-sm]="translationService.currentLang() === 'hr'"
+          class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
+          title="Hrvatski"
+        >
+          <span class="text-lg">🇭🇷</span>
+        </button>
+      </div>
+
+      <button (click)="generateMasterPrompt()" class="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 transition-colors" title="Copy App System Prompt">
+        <mat-icon>content_copy</mat-icon>
+      </button>
+      <button (click)="toggleSettings()" class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-white hover:scale-105 transition-transform">
+        <mat-icon>{{ showSettings() ? 'close' : 'settings' }}</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  <!-- Tab Switcher -->
+  @if (!showSettings()) {
+    <div class="px-6 mb-6">
+      <div class="flex p-1 bg-zinc-100 rounded-2xl border border-zinc-200">
+        <button 
+          (click)="setTab('generator')"
+          [class.bg-white]="currentTab() === 'generator'"
+          [class.shadow-sm]="currentTab() === 'generator'"
+          [class.text-zinc-900]="currentTab() === 'generator'"
+          [class.text-zinc-500]="currentTab() !== 'generator'"
+          class="flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all"
+        >
+          {{ t('tab.generator') }}
+        </button>
+        <button 
+          (click)="setTab('cheatsheet')"
+          [class.bg-white]="currentTab() === 'cheatsheet'"
+          [class.shadow-sm]="currentTab() === 'cheatsheet'"
+          [class.text-zinc-900]="currentTab() === 'cheatsheet'"
+          [class.text-zinc-500]="currentTab() !== 'cheatsheet'"
+          class="flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all"
+        >
+          {{ t('tab.cheatsheet') }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Settings Page -->
+  @if (showSettings()) {
+    <section class="px-6 animate-in slide-in-from-top-4 duration-500 z-40 bg-zinc-50 min-h-[60vh]">
+      <div class="flex items-center justify-between mb-8">
+        <h2 class="text-2xl font-bold">{{ t('settings.title') }}</h2>
+        <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{{ t('settings.subtitle') }}</span>
+      </div>
+
+      <div class="space-y-6">
+        @for (agent of promptService.agents(); track agent.id) {
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-600">
+                  <mat-icon>{{ agent.icon }}</mat-icon>
+                </div>
+                <div>
+                  <h3 class="font-bold text-sm">{{ t('agent.' + agent.id + '.name') }}</h3>
+                  <p class="text-[10px] text-zinc-400 truncate max-w-[150px]">{{ agentStatus()[agent.id]?.endpoint || 'No endpoint configured' }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                @let status = agentStatus()[agent.id]?.status;
+                
+                @if (status === 'active') {
+                  <span class="flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                    <mat-icon class="text-[12px]">check_circle</mat-icon> {{ t('status.active') }}
+                  </span>
+                } @else if (status === 'error') {
+                  <span class="flex items-center gap-1 text-[10px] font-bold text-rose-500 uppercase bg-rose-50 px-2 py-1 rounded-md border border-rose-100">
+                    <mat-icon class="text-[12px]">error_outline</mat-icon> {{ t('status.error') }}
+                  </span>
+                } @else if (status === 'inactive') {
+                  <span class="flex items-center gap-1 text-[10px] font-bold text-zinc-400 uppercase bg-zinc-100 px-2 py-1 rounded-md border border-zinc-200">
+                    <mat-icon class="text-[12px]">help_outline</mat-icon> {{ t('status.inactive') }}
+                  </span>
+                }
+
+                @if (status !== 'active' || isTesting()) {
+                  <button 
+                    (click)="testAgentApi(agent.id)"
+                    [disabled]="isTesting()"
+                    class="px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-zinc-800 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    @if (isTesting()) {
+                      <mat-icon class="text-[12px] animate-spin">sync</mat-icon>
+                    }
+                    {{ isTesting() ? t('btn.testing') : t('btn.test') }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="relative">
+              <input 
+                type="text" 
+                [value]="agentStatus()[agent.id]?.endpoint || ''"
+                class="w-full p-3 bg-zinc-50 border rounded-xl text-xs text-zinc-500 focus:outline-none transition-colors"
+                [class.border-emerald-200]="agentStatus()[agent.id]?.status === 'active'"
+                [class.border-rose-200]="agentStatus()[agent.id]?.status === 'error'"
+                [class.border-zinc-200]="agentStatus()[agent.id]?.status === 'inactive'"
+                readonly
+              />
+              <mat-icon 
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-sm transition-colors"
+                [class.text-emerald-400]="agentStatus()[agent.id]?.status === 'active'"
+                [class.text-rose-400]="agentStatus()[agent.id]?.status === 'error'"
+                [class.text-zinc-300]="agentStatus()[agent.id]?.status === 'inactive'"
+              >
+                {{ agentStatus()[agent.id]?.status === 'active' ? 'verified' : 'lock' }}
+              </mat-icon>
+            </div>
+          </div>
+        }
+
+        <div class="pt-6">
+          <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl">
+            <div class="flex gap-3">
+              <mat-icon class="text-emerald-500">info</mat-icon>
+              <div>
+                <h4 class="text-xs font-bold text-emerald-900 mb-1">{{ t('dev.mode.title') }}</h4>
+                <p class="text-[11px] text-emerald-700 leading-relaxed">
+                  {{ t('dev.mode.desc') }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- Step 1: Agent Selection -->
+  @if (currentTab() === 'generator' && step() === 1 && !showSettings()) {
+    <section class="px-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <h2 class="text-lg font-semibold mb-4 text-zinc-800">{{ t('step1.title') }}</h2>
+      <div class="grid gap-4">
+        @for (agent of promptService.agents(); track agent.id) {
+          <button 
+            (click)="selectAgent(agent)"
+            class="card flex items-start gap-4 text-left hover:border-zinc-400 transition-colors active:scale-98"
+          >
+            <div class="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-600 shrink-0">
+              <mat-icon>{{ agent.icon }}</mat-icon>
+            </div>
+            <div>
+              <h3 class="font-bold text-zinc-900">{{ t('agent.' + agent.id + '.name') }}</h3>
+              <p class="text-xs text-zinc-500 leading-relaxed">{{ t('agent.' + agent.id + '.desc') }}</p>
+            </div>
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  <!-- Step 2: Input Details -->
+  @if (currentTab() === 'generator' && step() === 2 && !showSettings()) {
+    <section class="px-6 animate-in fade-in slide-in-from-right-4 duration-500">
+      <button (click)="reset()" class="flex items-center gap-1 text-zinc-500 text-sm mb-6 hover:text-zinc-900">
+        <mat-icon class="text-sm">arrow_back</mat-icon> {{ t('btn.back') }}
+      </button>
+
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center text-white">
+            <mat-icon>{{ promptService.selectedAgent()?.icon }}</mat-icon>
+          </div>
+          <h2 class="text-xl font-bold">{{ promptService.selectedAgent()?.name }} {{ t('dropdown.presets') }}</h2>
+        </div>
+      </div>
+
+      <!-- Persona Selector -->
+      <div class="mb-8">
+        <span class="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3">{{ t('persona.label') }}</span>
+        <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+          @for (persona of promptService.personas(); track persona.id) {
+            <div class="relative group shrink-0">
+              <button 
+                (click)="selectPersona(persona)"
+                [class.bg-zinc-900]="selectedPersona()?.id === persona.id"
+                [class.text-white]="selectedPersona()?.id === persona.id"
+                [class.border-zinc-900]="selectedPersona()?.id === persona.id"
+                [class.ring-2]="selectedPersona()?.id === persona.id"
+                [class.ring-zinc-900]="selectedPersona()?.id === persona.id"
+                [class.ring-offset-2]="selectedPersona()?.id === persona.id"
+                class="flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-200 text-xs font-medium whitespace-nowrap transition-all active:scale-95 hover:border-zinc-400"
+              >
+                @if (selectedPersona()?.id === persona.id) {
+                  <mat-icon class="text-sm">check</mat-icon>
+                } @else {
+                  <mat-icon class="text-sm">{{ persona.icon }}</mat-icon>
+                }
+                {{ t('persona.' + persona.id + '.name') }}
+              </button>
+              
+              <!-- Custom Tooltip -->
+              <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 hidden group-hover:block w-56 p-3 bg-zinc-900 text-white text-[10px] rounded-2xl shadow-2xl z-[60] animate-in fade-in zoom-in-95 duration-200">
+                <p class="font-bold mb-1 text-emerald-400">{{ t('persona.' + persona.id + '.name') }}</p>
+                <p class="mb-2 leading-relaxed opacity-90">{{ t('persona.' + persona.id + '.desc') }}</p>
+                <div class="pt-2 border-t border-white/10">
+                  <p class="text-[9px] font-bold uppercase tracking-widest text-zinc-400 mb-1">{{ t('persona.prefix') }}</p>
+                  <p class="italic opacity-70 line-clamp-3">{{ persona.contextPrefix }}</p>
+                </div>
+                <!-- Arrow -->
+                <div class="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-zinc-900"></div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="space-y-8">
+        <!-- Context Field -->
+        <div class="relative">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <label for="context" class="text-xs font-bold uppercase tracking-wider text-zinc-400">{{ t('field.context.label') }}</label>
+              @if (selectedPersona()) {
+                <span class="px-2 py-0.5 bg-zinc-900 text-white text-[9px] font-bold rounded uppercase tracking-tighter animate-in fade-in zoom-in-90">
+                  {{ selectedPersona()?.name }} {{ t('persona.active') }}
+                </span>
+              }
+            </div>
+            <div class="flex items-center gap-2">
+              @if (userContext()) {
+                <button (click)="clearField('context')" class="text-zinc-400 hover:text-zinc-600 transition-colors">
+                  <mat-icon class="text-sm">backspace</mat-icon>
+                </button>
+              }
+              <button (click)="toggleDropdown('context')" class="text-zinc-900 hover:text-zinc-600 transition-colors">
+                <mat-icon class="text-sm">{{ activeDropdown() === 'context' ? 'close' : 'auto_awesome' }}</mat-icon>
+              </button>
+            </div>
+          </div>
+          <textarea 
+            id="context"
+            [(ngModel)]="userContext"
+            (focus)="setFocus('context')"
+            (blur)="setFocus(null)"
+            [placeholder]="t('field.context.placeholder')"
+            class="w-full p-4 rounded-xl border border-zinc-200 focus:border-zinc-900 focus:ring-0 transition-all text-sm min-h-[80px]"
+          ></textarea>
+          
+          <!-- Dropdown Menu -->
+          @if (activeDropdown() === 'context') {
+            <div class="absolute top-full left-0 right-0 mt-2 z-50 glass rounded-2xl p-3 animate-in zoom-in-95 duration-200 space-y-3">
+              <!-- AI Predictions -->
+              @if (isPredicting() || aiPredictions().length > 0) {
+                <div class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                  <div class="flex items-center gap-2 mb-2">
+                    <mat-icon class="text-xs text-emerald-600">auto_awesome</mat-icon>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-700">{{ t('dropdown.ai_suggestions') }}</span>
+                  </div>
+                  @if (isPredicting()) {
+                    <div class="flex flex-col gap-2 py-2">
+                      <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                        <span class="text-[10px] text-emerald-600 italic">{{ t('dropdown.ai_predicting') }}</span>
+                      </div>
+                      <div class="h-1 w-full bg-emerald-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 animate-progress"></div>
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="flex flex-wrap gap-2">
+                      @for (s of aiPredictions(); track s.label) {
+                        <div class="relative group">
+                          <button (click)="applySuggestion('context', s)" class="px-3 py-1.5 bg-white border border-emerald-200 rounded-lg text-[11px] font-medium text-emerald-900 hover:bg-emerald-100 transition-colors shadow-sm">
+                            {{ s.label }}
+                          </button>
+                          @if (s.description) {
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-zinc-900 text-white text-[9px] rounded-lg shadow-xl z-[60] animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                              {{ s.description }}
+                              <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+
+              <div class="flex flex-col gap-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-400 px-2 mb-1">{{ t('dropdown.presets') }}</span>
+                @for (s of currentSuggestions(); track s.label) {
+                  <div class="relative group">
+                    <button (click)="applySuggestion('context', s)" class="w-full flex items-center justify-between p-3 hover:bg-zinc-100 rounded-xl text-left transition-colors">
+                      <span class="text-xs font-medium">{{ s.label }}</span>
+                      <mat-icon class="text-xs text-zinc-400">chevron_right</mat-icon>
+                    </button>
+                    @if (s.description) {
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 p-3 bg-zinc-900 text-white text-[10px] rounded-xl shadow-2xl z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+                        <p class="leading-relaxed">{{ s.description }}</p>
+                        <div class="absolute top-full left-1/2 -translate-x-1/2 border-6 border-transparent border-t-zinc-900"></div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Task Field -->
+        <div class="relative">
+          <div class="flex items-center justify-between mb-2">
+            <label for="task" class="text-xs font-bold uppercase tracking-wider text-zinc-400">{{ t('field.task.label') }}</label>
+            <div class="flex items-center gap-2">
+              @if (userTask()) {
+                <button (click)="clearField('task')" class="text-zinc-400 hover:text-zinc-600 transition-colors">
+                  <mat-icon class="text-sm">backspace</mat-icon>
+                </button>
+              }
+              <button (click)="toggleDropdown('task')" class="text-zinc-900 hover:text-zinc-600 transition-colors">
+                <mat-icon class="text-sm">{{ activeDropdown() === 'task' ? 'close' : 'auto_awesome' }}</mat-icon>
+              </button>
+            </div>
+          </div>
+          <textarea 
+            id="task"
+            [(ngModel)]="userTask"
+            (focus)="setFocus('task')"
+            (blur)="setFocus(null)"
+            [placeholder]="t('field.task.placeholder')"
+            class="w-full p-4 rounded-xl border border-zinc-200 focus:border-zinc-900 focus:ring-0 transition-all text-sm min-h-[80px]"
+          ></textarea>
+
+          <!-- Dropdown Menu -->
+          @if (activeDropdown() === 'task') {
+            <div class="absolute top-full left-0 right-0 mt-2 z-50 glass rounded-2xl p-3 animate-in zoom-in-95 duration-200 space-y-3">
+              <!-- AI Predictions -->
+              @if (isPredicting() || aiPredictions().length > 0) {
+                <div class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                  <div class="flex items-center gap-2 mb-2">
+                    <mat-icon class="text-xs text-emerald-600">auto_awesome</mat-icon>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-700">{{ t('dropdown.ai_suggestions') }}</span>
+                  </div>
+                  @if (isPredicting()) {
+                    <div class="flex flex-col gap-2 py-2">
+                      <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                        <span class="text-[10px] text-emerald-600 italic">{{ t('dropdown.ai_predicting') }}</span>
+                      </div>
+                      <div class="h-1 w-full bg-emerald-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 animate-progress"></div>
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="flex flex-wrap gap-2">
+                      @for (s of aiPredictions(); track s.label) {
+                        <div class="relative group">
+                          <button (click)="applySuggestion('task', s)" class="px-3 py-1.5 bg-white border border-emerald-200 rounded-lg text-[11px] font-medium text-emerald-900 hover:bg-emerald-100 transition-colors shadow-sm">
+                            {{ s.label }}
+                          </button>
+                          @if (s.description) {
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-zinc-900 text-white text-[9px] rounded-lg shadow-xl z-[60] animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                              {{ s.description }}
+                              <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+
+              <div class="flex flex-col gap-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-400 px-2 mb-1">{{ t('dropdown.presets') }}</span>
+                @for (s of currentSuggestions(); track s.label) {
+                  <div class="relative group">
+                    <button (click)="applySuggestion('task', s)" class="w-full flex items-center justify-between p-3 hover:bg-zinc-100 rounded-xl text-left transition-colors">
+                      <span class="text-xs font-medium">{{ s.label }}</span>
+                      <mat-icon class="text-xs text-zinc-400">chevron_right</mat-icon>
+                    </button>
+                    @if (s.description) {
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 p-3 bg-zinc-900 text-white text-[10px] rounded-xl shadow-2xl z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+                        <p class="leading-relaxed">{{ s.description }}</p>
+                        <div class="absolute top-full left-1/2 -translate-x-1/2 border-6 border-transparent border-t-zinc-900"></div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Constraints Field -->
+        <div class="relative">
+          <div class="flex items-center justify-between mb-2">
+            <label for="constraints" class="text-xs font-bold uppercase tracking-wider text-zinc-400">{{ t('field.constraints.label') }}</label>
+            <div class="flex items-center gap-2">
+              @if (userConstraints()) {
+                <button (click)="clearField('constraints')" class="text-zinc-400 hover:text-zinc-600 transition-colors">
+                  <mat-icon class="text-sm">backspace</mat-icon>
+                </button>
+              }
+              <button (click)="toggleDropdown('constraints')" class="text-zinc-900 hover:text-zinc-600 transition-colors">
+                <mat-icon class="text-sm">{{ activeDropdown() === 'constraints' ? 'close' : 'auto_awesome' }}</mat-icon>
+              </button>
+            </div>
+          </div>
+          <input 
+            id="constraints"
+            [(ngModel)]="userConstraints"
+            (focus)="setFocus('constraints')"
+            (blur)="setFocus(null)"
+            type="text"
+            [placeholder]="t('field.constraints.placeholder')"
+            class="w-full p-4 rounded-xl border border-zinc-200 focus:border-zinc-900 focus:ring-0 transition-all text-sm"
+          />
+
+          <!-- Dropdown Menu -->
+          @if (activeDropdown() === 'constraints') {
+            <div class="absolute top-full left-0 right-0 mt-2 z-50 glass rounded-2xl p-3 animate-in zoom-in-95 duration-200 space-y-3">
+              <!-- AI Predictions -->
+              @if (isPredicting() || aiPredictions().length > 0) {
+                <div class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                  <div class="flex items-center gap-2 mb-2">
+                    <mat-icon class="text-xs text-emerald-600">auto_awesome</mat-icon>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-700">{{ t('dropdown.ai_suggestions') }}</span>
+                  </div>
+                  @if (isPredicting()) {
+                    <div class="flex flex-col gap-2 py-2">
+                      <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                        <span class="text-[10px] text-emerald-600 italic">{{ t('dropdown.ai_predicting') }}</span>
+                      </div>
+                      <div class="h-1 w-full bg-emerald-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 animate-progress"></div>
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="flex flex-wrap gap-2">
+                      @for (s of aiPredictions(); track s.label) {
+                        <div class="relative group">
+                          <button (click)="applySuggestion('constraints', s)" class="px-3 py-1.5 bg-white border border-emerald-200 rounded-lg text-[11px] font-medium text-emerald-900 hover:bg-emerald-100 transition-colors shadow-sm">
+                            {{ s.label }}
+                          </button>
+                          @if (s.description) {
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-zinc-900 text-white text-[9px] rounded-lg shadow-xl z-[60] animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                              {{ s.description }}
+                              <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+
+              <div class="flex flex-col gap-1">
+                <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-400 px-2 mb-1">{{ t('dropdown.presets') }}</span>
+                @for (s of currentSuggestions(); track s.label) {
+                  <div class="relative group">
+                    <button (click)="applySuggestion('constraints', s)" class="w-full flex items-center justify-between p-3 hover:bg-zinc-100 rounded-xl text-left transition-colors">
+                      <span class="text-xs font-medium">{{ s.label }}</span>
+                      <mat-icon class="text-xs text-zinc-400">chevron_right</mat-icon>
+                    </button>
+                    @if (s.description) {
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 p-3 bg-zinc-900 text-white text-[10px] rounded-xl shadow-2xl z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+                        <p class="leading-relaxed">{{ s.description }}</p>
+                        <div class="absolute top-full left-1/2 -translate-x-1/2 border-6 border-transparent border-t-zinc-900"></div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="pt-4">
+          <button 
+            (click)="generateFinalPrompt()"
+            [disabled]="isGenerating() || !userTask()"
+            class="btn-primary w-full py-4 flex items-center justify-center gap-2 relative overflow-hidden group"
+          >
+            <div class="absolute inset-0 bg-gradient-to-r from-zinc-800 to-zinc-900 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            @if (isGenerating()) {
+              <div class="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
+                <div class="flex items-center gap-3">
+                  <div class="flex gap-1">
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:-0.3s]"></div>
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:-0.15s]"></div>
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce"></div>
+                  </div>
+                  <span class="text-xs font-bold text-white uppercase tracking-widest">{{ t('btn.generating') }}</span>
+                </div>
+                <div class="absolute bottom-0 left-0 h-1 bg-emerald-500 animate-progress w-full"></div>
+              </div>
+              <mat-icon class="animate-spin text-zinc-400 opacity-0">sync</mat-icon>
+              <span class="animate-pulse relative z-10 opacity-0">{{ t('btn.generating') }}</span>
+            } @else {
+              <mat-icon class="text-emerald-400 relative z-10">auto_awesome</mat-icon>
+              <span class="relative z-10">{{ t('btn.generate') }}</span>
+            }
+          </button>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- Step 3: Result -->
+  @if (currentTab() === 'generator' && step() === 3 && !showSettings()) {
+    <section class="px-6 animate-in zoom-in-95 duration-500">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold">{{ t('step3.title') }}</h2>
+        <button (click)="step.set(2)" class="text-zinc-500 text-sm hover:text-zinc-900">{{ t('btn.back') }}</button>
+      </div>
+
+      <div class="relative group">
+        <div class="p-6 bg-zinc-900 text-zinc-100 rounded-2xl font-mono text-sm leading-relaxed whitespace-pre-wrap min-h-[200px] shadow-xl">
+          {{ generatedPrompt() }}
+        </div>
+        <button 
+          (click)="copyToClipboard()"
+          class="absolute top-4 right-4 w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+        >
+          <mat-icon>{{ showToast() ? 'check' : 'content_copy' }}</mat-icon>
+        </button>
+      </div>
+
+      <div class="mt-4">
+        <button 
+          (click)="saveCurrentPrompt()"
+          class="w-full py-3 bg-emerald-500 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20"
+        >
+          <mat-icon>bookmark</mat-icon>
+          {{ t('btn.save') }}
+        </button>
+      </div>
+
+      <!-- Toast Notification -->
+      @if (showToast()) {
+        <div class="fixed top-8 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+          <div class="bg-zinc-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/10">
+            <mat-icon class="text-emerald-400">check_circle</mat-icon>
+            <span class="text-sm font-medium">{{ t('toast.copied') }}</span>
+          </div>
+        </div>
+      }
+
+      <div class="mt-8 space-y-4">
+        <p class="text-center text-xs text-zinc-400">Ready to copy-paste into {{ promptService.selectedAgent()?.name }}!</p>
+        <button (click)="reset()" class="w-full py-3 border border-zinc-200 rounded-xl text-sm font-medium hover:bg-zinc-100 transition-colors">
+          {{ t('btn.reset') }}
+        </button>
+      </div>
+    </section>
+  }
+
+  <!-- Cheatsheet Page -->
+  @if (currentTab() === 'cheatsheet' && !showSettings()) {
+    <section class="px-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-zinc-900">{{ t('cheatsheet.title') }}</h2>
+        <p class="text-sm text-zinc-500">{{ t('cheatsheet.subtitle') }}</p>
+      </div>
+
+      <div class="space-y-4">
+        @for (item of cheatsheetData; track item.id) {
+          <div class="card p-5 hover:border-zinc-400 transition-all group">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="w-10 h-10 rounded-xl bg-zinc-900 text-white flex items-center justify-center">
+                <mat-icon>{{ item.icon }}</mat-icon>
+              </div>
+              <h3 class="font-bold text-zinc-900">{{ t('agent.' + item.id + '.name') }}</h3>
+            </div>
+            <ul class="space-y-2">
+              @for (tip of item.tips; track tip) {
+                <li class="flex items-start gap-2 text-xs text-zinc-600">
+                  <mat-icon class="text-[14px] text-emerald-500 mt-0.5">check_circle</mat-icon>
+                  <span>{{ tip }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  <!-- Saved Prompts Page -->
+  @if (currentTab() === 'saved' && !showSettings()) {
+    <section class="px-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-zinc-900">{{ t('saved.title') }}</h2>
+        <p class="text-sm text-zinc-500">{{ t('saved.subtitle') }}</p>
+      </div>
+
+      @if (savedPrompts().length === 0) {
+        <div class="flex flex-col items-center justify-center py-20 text-zinc-400">
+          <mat-icon class="text-4xl mb-4">bookmark_border</mat-icon>
+          <p class="text-sm">{{ t('saved.empty') }}</p>
+        </div>
+      } @else {
+        <div class="space-y-4">
+          @for (p of savedPrompts(); track p.id) {
+            <div class="card p-5">
+              <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-600">
+                    <mat-icon class="text-sm">{{ getAgentIcon(p.agentId) }}</mat-icon>
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-sm">{{ t('agent.' + p.agentId + '.name') }}</h3>
+                    <p class="text-[10px] text-zinc-400">{{ p.timestamp | date:'short' }}</p>
+                  </div>
+                </div>
+                <button (click)="deleteSavedPrompt(p.id)" class="text-zinc-400 hover:text-rose-500 transition-colors">
+                  <mat-icon class="text-sm">delete</mat-icon>
+                </button>
+              </div>
+              <p class="text-xs text-zinc-600 line-clamp-2 mb-4 italic">"{{ p.task }}"</p>
+              <button 
+                (click)="loadSavedPrompt(p)"
+                class="w-full py-2 bg-zinc-900 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-zinc-800 transition-colors"
+              >
+                {{ t('saved.load') }}
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+
+  <!-- Footer Navigation (Mock) -->
+  <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 backdrop-blur-lg border-t border-zinc-200 px-8 py-4 flex justify-between items-center z-50">
+    <button (click)="setTab('generator')" [class.text-zinc-900]="currentTab() === 'generator'" [class.text-zinc-400]="currentTab() !== 'generator'" class="flex flex-col items-center gap-1">
+      <mat-icon>home</mat-icon>
+      <span class="text-[10px] font-bold uppercase">{{ t('nav.home') }}</span>
+    </button>
+    <button (click)="setTab('cheatsheet')" [class.text-zinc-900]="currentTab() === 'cheatsheet'" [class.text-zinc-400]="currentTab() !== 'cheatsheet'" class="flex flex-col items-center gap-1">
+      <mat-icon>explore</mat-icon>
+      <span class="text-[10px] font-bold uppercase">{{ t('nav.explore') }}</span>
+    </button>
+    <button (click)="setTab('saved')" [class.text-zinc-900]="currentTab() === 'saved'" [class.text-zinc-400]="currentTab() !== 'saved'" class="flex flex-col items-center gap-1">
+      <mat-icon>bookmark</mat-icon>
+      <span class="text-[10px] font-bold uppercase">{{ t('nav.saved') }}</span>
+    </button>
+    <button (click)="toggleSettings()" [class.text-zinc-900]="showSettings()" [class.text-zinc-400]="!showSettings()" class="flex flex-col items-center gap-1">
+      <mat-icon>settings</mat-icon>
+      <span class="text-[10px] font-bold uppercase">{{ t('nav.settings') }}</span>
+    </button>
+  </nav>
+</main>
