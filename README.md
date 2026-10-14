@@ -1,16 +1,8 @@
-# **🧠 Psychometric Mastery Guide**
-
-An advanced AI-powered psychometric and aptitude test preparation web application built with **React**, **Tailwind CSS**, and **Google Gemini 3 Flash API**.
+# **🧠 Prompt Builder Guide**
 
 ## **🚀 Key Features**
 
-* **Practice Modules:** Quantitative, Abstract Reasoning, Spatial Visualization, Verbal Logic, and Code Logic.  
-* **AI Step-by-Step Explainer:** Detailed logic decomposition using Gemini 3 Flash.  
-* **Company Test Intel:** Real-time web-grounded research (Google Search) on test formats for McKinsey, Google, Optiver, Amazon, Citadel, Deloitte, etc.  
-* **Multimodal Visual Solver:** Upload image screenshots of matrix puzzles or spatial shapes to receive step-by-step visual solutions.  
-* **Structured AI Diagnostics:** Generates a structured JSON diagnostic profile (Percentiles, Archetypes, Strengths/Weaknesses).  
-* **Timed Simulator:** Exam mode under time pressure.  
-* **AI Mentor Chat:** Instant interactive Q\&A for test strategies and interview preparation.
+* **AI Step-by-Step promp builder:** Detailed logic composition.  
 
 ## **🛠️ Quick Start (Local Development)**
 

@@ -66,7 +66,7 @@ export class App {
   }
 
   getAgentIcon(agentId: string): string {
-    return this.promptService.agents().find(a => a.id === agentId)?.icon || 'help';
+    return this.promptService.agents().find((a: { id: string; }): boolean => a.id === agentId)?.icon || 'help';
   }
 
   private loadFromLocalStorage() {
@@ -110,12 +110,12 @@ export class App {
   }
 
   deleteSavedPrompt(id: string) {
-    this.savedPrompts.set(this.savedPrompts().filter(p => p.id !== id));
+    this.savedPrompts.set(this.savedPrompts().filter((p: { id: string; }) => p.id !== id));
     this.saveToLocalStorage();
   }
 
   loadSavedPrompt(saved: SavedPrompt) {
-    const agent = this.promptService.agents().find(a => a.id === saved.agentId);
+    const agent = this.promptService.agents().find((a: { id: string; }) => a.id === saved.agentId);
     if (!agent) return;
 
     this.promptService.selectedAgent.set(agent);
@@ -124,7 +124,7 @@ export class App {
     this.userConstraints.set(saved.constraints);
     this.generatedPrompt.set(saved.generatedPrompt);
     
-    const persona = this.promptService.personas().find(p => p.id === saved.personaId);
+    const persona = this.promptService.personas().find((p: { id: string | null; }) => p.id === saved.personaId);
     this.selectedPersona.set(persona || null);
 
     this.currentTab.set('generator');
